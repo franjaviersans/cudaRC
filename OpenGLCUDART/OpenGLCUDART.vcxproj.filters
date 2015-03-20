@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="kernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GLSLProgram.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="ObjectOFF.cpp" />
+    <ClCompile Include="Vector4D.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GLSLProgram.h" />
+    <ClInclude Include="kernel.cuh" />
+    <ClInclude Include="timer.h" />
+    <ClInclude Include="utils.h" />
+    <ClInclude Include="ObjectOFF.h" />
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="Triangle.h" />
+    <ClInclude Include="Vertex.h" />
+    <ClInclude Include="Vector4D.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{85d4dbb9-1e66-49c2-9431-8e2597360408}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\basic.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\basic.vert">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>
