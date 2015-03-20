@@ -160,7 +160,7 @@ namespace glfwFunc
 		off = new CObjectOFF();
 			
 		//Set the image to the  class
-		if(off->openFile("E:/Users/franjav/Desktop/Modelos/off/apple.off")){
+		if(off->openFile("E:/Users/franjav/Desktop/Modelos/off/cube.off")){
 			/*m_translate.x = 0.0;
 			m_translate.y = 0.0;
 			m_translate.z = 0.0;
