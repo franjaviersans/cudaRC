@@ -4,12 +4,12 @@
 CObjectOFF::CObjectOFF(){
 	//Incializa todas las variables 
 
-	maxx = -9999999;
-	minx = 9999999;
-	maxy = -9999999;
-	miny = 9999999;
-	maxz = -9999999;
-	minz = 9999999;
+	maxi.x = -9999999;
+	mini.x = 9999999;
+	maxi.y = -9999999;
+	mini.y = 9999999;
+	maxi.z = -9999999;
+	mini.z = 9999999;
 }
 
 CObjectOFF::CObjectOFF(float arr[16],const std::vector<CVertex> &ptr_puntos,const std::vector<CTriangle> &ptr_caras){
@@ -24,12 +24,12 @@ CObjectOFF::CObjectOFF(float arr[16],const std::vector<CVertex> &ptr_puntos,cons
 
 		vertex.push_back(vert);
 
-		maxx = std::max(maxx,vert.v.x);
-		minx = std::min(minx,vert.v.x);
-		maxy = std::max(maxy,vert.v.y);
-		miny = std::min(miny,vert.v.y);
-		maxz = std::max(maxz,vert.v.z);
-		minz = std::min(minz,vert.v.z);
+		maxi.x = std::max(maxi.x,vert.v.x);
+		mini.x = std::min(mini.x,vert.v.x);
+		maxi.y = std::max(maxi.y,vert.v.y);
+		mini.y = std::min(mini.y,vert.v.y);
+		maxi.z = std::max(maxi.z,vert.v.z);
+		mini.z = std::min(mini.z,vert.v.z);
 	}
 
 	for(std::vector<CTriangle>::iterator f = faces.begin();f != faces.end();++f){
@@ -79,15 +79,15 @@ void CObjectOFF::norm(){
 
 void CObjectOFF::center(){
 	//Busca los centros de cada eje para centrar
-	float cx=(maxx+minx)/2, cy=(maxy+miny)/2, cz=(maxz+minz)/2;
+	float cx=(maxi.x+mini.x)/2, cy=(maxi.y+mini.y)/2, cz=(maxi.z+mini.z)/2;
 
 	//Centra los puntos del bbox
-	minx = minx-cx;
-	maxx = maxx-cx;
-	miny = miny-cy;
-	maxy = maxy-cy;
-	minz = minz-cz;
-	maxz = maxz-cz;
+	mini.x = mini.x-cx;
+	maxi.x = maxi.x-cx;
+	mini.y = mini.y-cy;
+	maxi.y = maxi.y-cy;
+	mini.z = mini.z-cz;
+	maxi.z = maxi.z-cz;
 
 	//Centra cada uno de los puntos del objetooff
 	for(i=0;i<vertex.size();++i){
@@ -101,14 +101,14 @@ void CObjectOFF::normalize(){
 	float norm;
 			
 	//Se busca el mayor de las dimensiones para normalizar con esa dimension
-	norm=std::max(maxx-minx,std::max(maxy-miny,maxz-minz)); 
+	norm=std::max(maxi.x-mini.x,std::max(maxi.y-mini.y,maxi.z-mini.z)); 
 
-	minx/=norm;
-	maxx/=norm;
-	miny/=norm;
-	maxy/=norm;
-	minz/=norm;
-	maxz/=norm;
+	mini.x/=norm;
+	maxi.x/=norm;
+	mini.y/=norm;
+	maxi.y/=norm;
+	mini.z/=norm;
+	maxi.z/=norm;
 
 	//Aplicar la normalizacion a cada punto
 	for(i=0;i<vertex.size();++i){
@@ -139,12 +139,12 @@ bool CObjectOFF::openFile(const std::string& pFile){
 		entrada>>pointx>>pointy>>pointz;
 		
 		//Busca los puntos maximos y minimos de cada eje para poder crear la caja envolvente
-		if(pointx<minx) minx=pointx;
-		if(pointx>maxx) maxx=pointx;
-		if(pointy<miny) miny=pointy;
-		if(pointy>maxy) maxy=pointy;
-		if(pointz<minz) minz=pointz;
-		if(pointz>maxz) maxz=pointz;
+		if(pointx<mini.x) mini.x=pointx;
+		if(pointx>maxi.x) maxi.x=pointx;
+		if(pointy<mini.y) mini.y=pointy;
+		if(pointy>maxi.y) maxi.y=pointy;
+		if(pointz<mini.z) mini.z=pointz;
+		if(pointz>maxi.z) maxi.z=pointz;
 
 		//Se guarda cada punto en un vector
 		punto_auxi.v.init(pointx,pointy,pointz,1.0f);

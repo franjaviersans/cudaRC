@@ -7,6 +7,7 @@
 #include "include/glm/gtx/quaternion.hpp"
 #include "GLSLProgram.h"
 #include "ObjectOFF.h"
+#include "Octree.h"
 #include <stdlib.h>
 #include <string>
 #include <iostream>
@@ -39,7 +40,8 @@ namespace glfwFunc
 	const float FCP = 5.0f;
 	const float fAngle = 45.f;
 	double lastx, lasty;
-	bool pres = false;
+	float s = 1.0f, tx = 0.0f, ty = 0.0f, tz = 0.0f;
+	int pres = -1;
 	//Variables to do rotation
 	glm::quat quater, q2;
 	glm::mat4x4 RotationMat = glm::mat4x4();
@@ -89,6 +91,43 @@ namespace glfwFunc
 		glBindVertexArray(0);
 	}
 	
+
+	int sumar(Octree oc)
+	{
+		if(oc.Hoja)
+		{
+			return oc.primitivas.size();
+		}
+		else
+		{
+			int acum = 0;
+			for (int i = 0; i < 8; i++)
+			{
+				acum += sumar(*(oc.hijos[i]));
+			}
+
+			return acum;
+		}
+	}
+
+	int nivel(Octree oc)
+	{
+		if(oc.Hoja)
+		{
+			return 0;
+		}
+		else
+		{
+			int actual = 0;
+			for (int i = 0; i < 8; i++)
+			{
+				actual = max(actual, nivel((*(oc.hijos[i]))));
+			}
+
+			return actual + 1;
+		}
+	}
+
 	///
 	/// Init all data and variables.
 	/// @return true if everything is ok, false otherwise
@@ -171,6 +210,14 @@ namespace glfwFunc
 			((CObjectOFF *)off)->normalize();
 			((CObjectOFF *)off)->norm();
 
+
+			//Set the octree with the object
+			Octree oc(off->getVertex(), off->getFaces(), AABB(CVector4D(off->minBox().x, off->minBox().y, off->minBox().z, 1.0f), 
+																CVector4D(off->maxBox().x, off->maxBox().y, off->maxBox().z, 1.0f)));
+
+			cout<<sumar(oc)<<endl;
+			cout<<nivel(oc)<<endl;
+
 			cuda.cudaSetObject(off->getVertex(), off->getFaces());
 		}
 				
@@ -210,10 +257,10 @@ namespace glfwFunc
 
 	int TwEventMousePosGLFW3(GLFWwindow* window, double xpos, double ypos)
 	{ 
-		if(pres){	
+		if(pres == 0){	
 			//Rotation
 			float dx = float(xpos - lastx);
-			float dy = float(ypos - lasty);
+			float dy = - float(ypos - lasty);
 
 			//Calculate angle and rotation axis
 			float angle = sqrtf(dx*dx + dy*dy)/50.0f;
@@ -222,6 +269,13 @@ namespace glfwFunc
 			q2 = glm::angleAxis(angle, glm::normalize(glm::vec3(dy,dx,0.0f)));
 			quater = glm::cross(q2, quater);
 			
+			lastx = xpos;
+			lasty = ypos;
+		}else if(pres == 1){
+			//Translate point
+			tx += float(xpos - lastx) / 100.0f;
+			ty += float(ypos - lasty) / 100.0f;
+	
 			lastx = xpos;
 			lasty = ypos;
 		}
@@ -237,14 +291,28 @@ namespace glfwFunc
 			if(action == GLFW_PRESS){
 				lastx = x;
 				lasty = y;
-				pres = true;
+				pres = 0;
 			}else{				
-				pres = false;
+				pres = -1;
+			}
+			return true;
+		}else if(button == GLFW_MOUSE_BUTTON_RIGHT){
+			if(action == GLFW_PRESS){
+				lastx = x;
+				lasty = y;
+				pres = 1;
+			}else{				
+				pres = -1;
 			}
 			return true;
 		}
 			
 		return false;
+	}
+
+	int TwEventMouseWheelGLFW3(GLFWwindow* window, double xoffset, double yoffset){
+		s += float(yoffset) / 10.0f;
+		return true;
 	}
 	
 	///< The resizing function
@@ -273,9 +341,12 @@ namespace glfwFunc
 
 		glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
 		glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.f));
+		glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
+		glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
+
 
 		memcpy(m_Options.modelView, 
-			glm::value_ptr(trans * rot), 
+			glm::value_ptr(trans * trans2 * scale * rot), 
 			16 * sizeof(float));
 
 		cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
@@ -349,6 +420,7 @@ int main(int argc, char** argv)
 	glfwSetKeyCallback(glfwFunc::glfwWindow, glfwFunc::keyboardCB);
 	glfwSetWindowSizeCallback(glfwFunc::glfwWindow, glfwFunc::resizeCB);
 	glfwSetMouseButtonCallback(glfwFunc::glfwWindow, (GLFWmousebuttonfun)glfwFunc::TwEventMouseButtonGLFW3);
+	glfwSetScrollCallback(glfwFunc::glfwWindow, (GLFWscrollfun)glfwFunc::TwEventMouseWheelGLFW3);
 	glfwSetCursorPosCallback(glfwFunc::glfwWindow, (GLFWcursorposfun)glfwFunc::TwEventMousePosGLFW3);
 
 	// main loop!
