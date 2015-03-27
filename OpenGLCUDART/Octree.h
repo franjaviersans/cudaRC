@@ -6,7 +6,17 @@
 #include <vector>
 using namespace std;
 
-#define MAXINLEAF 4
+#define MAXINLEAF 6
+#define MAXDEPTH 2
+
+enum CellType {LEAF, TRIANGLE, INTERNAL};
+
+struct Cell{
+	CellType type;
+	float3 minBox, maxBox;
+	int firstChild;
+	int numChilds;
+};
 
 class Octree{
 	public:
@@ -18,8 +28,8 @@ class Octree{
 
 	public:
 		Octree(const std::vector<CVertex> * const vertex, const std::vector<CTriangle> * const faces, AABB objectAABB);
-		Octree(AABB a, int nive, const std::vector<CVertex> * const vertex, const std::vector<CTriangle> * const faces);
 		void Subdividir();
+		void toLinear(std::vector<Cell> *);
 		~Octree();
 		/*Objeto* Recorrer(Rayo ray,float &D, int &intersec);
 		Objeto* Recorrer_Ocluder(Rayo ray,float fLightDist);*/
@@ -27,6 +37,9 @@ class Octree{
 	private:
 		const std::vector<CVertex> *m_vertex;
 		const std::vector<CTriangle> *m_faces;
+		Octree(AABB a, int nive, const std::vector<CVertex> * const vertex, const std::vector<CTriangle> * const faces);
+		void toLinearChild(std::vector<Cell> *, unsigned int pos);
+		
 		
 };
 

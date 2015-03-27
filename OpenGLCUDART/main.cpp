@@ -215,10 +215,36 @@ namespace glfwFunc
 			Octree oc(off->getVertex(), off->getFaces(), AABB(CVector4D(off->minBox().x, off->minBox().y, off->minBox().z, 1.0f), 
 																CVector4D(off->maxBox().x, off->maxBox().y, off->maxBox().z, 1.0f)));
 
-			cout<<sumar(oc)<<endl;
-			cout<<nivel(oc)<<endl;
+			vector<Cell> vec;
+			oc.toLinear(&vec);
 
-			cuda.cudaSetObject(off->getVertex(), off->getFaces());
+			/*
+			cout<<"SUMAR "<<sumar(oc)<<endl;
+			cout<<"NIVEL "<<nivel(oc)<<endl;
+			
+			for(int i=0;i<vec.size();++i)
+			{
+				if(vec[i].type == TRIANGLE){
+					cout<<i<<"  "<<((vec[i].type == LEAF)?"Hoja":((vec[i].type == INTERNAL)?"Internal":"Tri"))<<"  "<<vec[i].numChilds<<"  "<<
+						vec[i].firstChild<<"  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.z<<")  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.z<<")  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.z<<")  "
+						;
+				}else{
+					cout<<i<<"  "<<((vec[i].type == LEAF)?"Hoja":((vec[i].type == INTERNAL)?"Internal":"Tri"))<<"  "<<vec[i].numChilds<<"  "<<
+						vec[i].firstChild<<
+						" ("<<vec[i].minBox.x<<","<<vec[i].minBox.y<<","<<vec[i].minBox.z<<
+						")  "<<" ("<<vec[i].maxBox.x<<","<<vec[i].maxBox.y<<","<<vec[i].maxBox.z<<")";
+				}
+				cout<<endl;
+			}*/
+
+			cuda.cudaSetObject(off->getVertex(), off->getFaces(), &vec);
+		}
+		else
+		{
+			cout<<"Problem loading file"<<endl;
 		}
 				
 		delete off;
@@ -346,7 +372,7 @@ namespace glfwFunc
 
 
 		memcpy(m_Options.modelView, 
-			glm::value_ptr(trans * trans2 * scale * rot), 
+			glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
 			16 * sizeof(float));
 
 		cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);

@@ -30,11 +30,11 @@ Octree::Octree(AABB a, int nive, const std::vector<CVertex> * const vertex, cons
 	m_vertex = vertex;
 	m_faces = faces;
 
-	cout<<nivel<<endl;
+	//cout<<nivel<<endl;
 }
 
 Octree::~Octree(){
-
+	//TODO
 }
 
 AABB CalcularCaja(CVector4D V0, CVector4D V1, CVector4D V2){
@@ -65,6 +65,7 @@ void Octree::Subdividir(){
 	hijos[6] = new Octree(AABB(centro,Caja.amax),nivel, m_vertex, m_faces);
 	hijos[7] = new Octree(AABB(CVector4D(Caja.amin.x,centro.y,centro.z, 1.0f),CVector4D(centro.x,Caja.amax.y,Caja.amax.z, 1.0f)),nivel, m_vertex, m_faces);
 
+	//cout<<"AQUI "<<primitivas.size()<<endl;
 	for(int j=0;j<8;++j)
 	{
 		for each (unsigned int tri_index in primitivas)
@@ -78,14 +79,87 @@ void Octree::Subdividir(){
 			}
 		}
 
-		/*if(hijos[j]->primitivas.size() > MAXINLEAF)
+
+		if(hijos[j]->primitivas.size() > MAXINLEAF && this->nivel < MAXDEPTH)
 		{
 			cout<< hijos[j]->primitivas.size()<<endl;
 			hijos[j]->Subdividir();
-		}*/
+		}
 	}
 }
 
+
+void Octree::toLinear(std::vector<Cell> *linearOctree)
+{
+	//Insert a dommy and then calculate it recursively
+	Cell dommy;
+	(*linearOctree).push_back(dommy);
+	toLinearChild(linearOctree, 0);
+}
+
+void Octree::toLinearChild(std::vector<Cell> *linearOctree, unsigned int pos)
+{
+	//Set the min and max bounding box
+	(*linearOctree)[pos].maxBox.x = this->Caja.amax.x;
+	(*linearOctree)[pos].maxBox.y = this->Caja.amax.y;
+	(*linearOctree)[pos].maxBox.z = this->Caja.amax.z;
+
+	(*linearOctree)[pos].minBox.x = this->Caja.amin.x;
+	(*linearOctree)[pos].minBox.y = this->Caja.amin.y;
+	(*linearOctree)[pos].minBox.z = this->Caja.amin.z;
+
+	(*linearOctree)[pos].firstChild = (*linearOctree).size();
+
+	if(this->Hoja)
+	{
+		(*linearOctree)[pos].type = LEAF;
+		(*linearOctree)[pos].numChilds = this->primitivas.size();
+
+		for(unsigned int i = 0; i< primitivas.size();++i)
+		{
+			Cell tri;
+			tri.type = TRIANGLE;
+			tri.firstChild = primitivas[i];
+			tri.numChilds = pos;
+			tri.maxBox.x = this->Caja.amax.x;
+			tri.maxBox.y = this->Caja.amax.y;
+			tri.maxBox.z = this->Caja.amax.z;
+			tri.minBox.x = this->Caja.amin.x;
+			tri.minBox.y = this->Caja.amin.y;
+			tri.minBox.z = this->Caja.amin.z;
+			(*linearOctree).push_back(tri);
+		}
+	}
+	else
+	{
+		(*linearOctree)[pos].type = INTERNAL;
+
+		int numhijos = 0;
+		
+		//Count the number of non empty childs
+		for(unsigned int i = 0; i < 8;++i)
+		{
+			if(!hijos[i]->Hoja || (hijos[i]->Hoja && hijos[i]->primitivas.size() > 0)){
+				Cell dommy;
+				++numhijos;
+				(*linearOctree).push_back(dommy);
+			}
+		}
+
+		(*linearOctree)[pos].numChilds = numhijos;
+
+		numhijos = 0;
+		//Do the same for every child
+		for(unsigned int i = 0; i < 8;++i)
+		{
+			if(!hijos[i]->Hoja || (hijos[i]->Hoja && hijos[i]->primitivas.size() > 0))
+			{
+				hijos[i]->toLinearChild(linearOctree, (*linearOctree)[pos].firstChild + numhijos);
+				++numhijos;
+			}
+		}
+	}
+}
 
 
 /*Objeto* Octree::Recorrer(Rayo ray,float &D, int &intersec){
