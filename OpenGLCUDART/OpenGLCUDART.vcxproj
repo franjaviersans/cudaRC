@@ -156,6 +156,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClCompile Include="AABB.cpp" />
     <ClCompile Include="GLSLProgram.cpp" />
+    <ClCompile Include="kernelCPU.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectOFF.cpp" />
     <ClCompile Include="Octree.cpp" />
@@ -165,6 +166,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="AABB.h" />
     <ClInclude Include="GLSLProgram.h" />
     <ClInclude Include="kernel.cuh" />
+    <ClInclude Include="kernelCPU.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="ObjectOFF.h" />
     <ClInclude Include="Octree.h" />

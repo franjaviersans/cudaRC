@@ -16,6 +16,7 @@
 #include "device_launch_parameters.h"
 #include "cuda_gl_interop.h"
 #include "kernel.cuh"
+#include "kernelCPU.h"
 
 #pragma comment(lib, "lib/glfw3dll.lib")
 #pragma comment(lib, "lib/glew32.lib")
@@ -24,6 +25,8 @@
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
 #define MYPI 3.14159265
 
+#define GPU
+
 using namespace std;
 
 
@@ -31,7 +34,13 @@ using namespace std;
 namespace glfwFunc
 {
 	CObjectOFF * off;
-	CUDAClass cuda;
+	#ifdef GPU
+		CUDAClass cuda;
+	#else	
+		CPURCClass cpuclass;
+	#endif
+	
+	
 	Options m_Options;
 	GLFWwindow* glfwWindow;
 	const unsigned int WINDOW_WIDTH = 1280;
@@ -190,16 +199,18 @@ namespace glfwFunc
 		glBufferData(GL_PIXEL_UNPACK_BUFFER, WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uchar4), NULL, GL_DYNAMIC_DRAW);
  
 		//Bind the PBO to a cuda resource
-		checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cudaPboResource, gl_pixelBufferObject, cudaGraphicsMapFlagsWriteDiscard));
-		
+		#ifdef GPU
+			checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cudaPboResource, gl_pixelBufferObject, cudaGraphicsMapFlagsWriteDiscard));
+		#endif
 
-		quater = glm::quat();
+		quater = glm::quat(0.0f,1.0f,0.0f,0.0f);
+
 
 		//Load an object
 		off = new CObjectOFF();
 			
 		//Set the image to the  class
-		if(off->openFile("E:/Users/franjav/Desktop/Modelos/off/cube.off")){
+		if(off->openFile("E:/Users/franjav/Desktop/Modelos/off/space_station.off")){
 			/*m_translate.x = 0.0;
 			m_translate.y = 0.0;
 			m_translate.z = 0.0;
@@ -240,7 +251,12 @@ namespace glfwFunc
 				cout<<endl;
 			}*/
 
-			cuda.cudaSetObject(off->getVertex(), off->getFaces(), &vec);
+			#ifdef GPU
+				cuda.cudaSetObject(off->getVertex(), off->getFaces(), &vec);
+			#else	
+				cpuclass.SetObject(off->getVertex(), off->getFaces(), &vec);
+			#endif
+			
 		}
 		else
 		{
@@ -292,9 +308,12 @@ namespace glfwFunc
 			float angle = sqrtf(dx*dx + dy*dy)/50.0f;
 					
 			//Acumulate rotation with quaternion multiplication
-			q2 = glm::angleAxis(angle, glm::normalize(glm::vec3(dy,dx,0.0f)));
-			quater = glm::cross(q2, quater);
-			
+			if(abs(dx) + abs(dy) > 0.01f){
+				q2 = glm::angleAxis(angle, glm::normalize(glm::vec3(dy,dx,0.0f)));
+				quater = glm::cross(q2, quater);
+			}
+
+
 			lastx = xpos;
 			lasty = ypos;
 		}else if(pres == 1){
@@ -354,36 +373,64 @@ namespace glfwFunc
 		m_Options.priY = -tan(fAngle/2.0f*float(MYPI)/180.0f) * NCP;
 	}
 
-	void displayKernel() 
-	{
-		cudaGraphicsMapResources(1, &cudaPboResource, 0);
-		size_t num_bytes;
-		uchar4 *d_textureBufferData;
+	#ifdef GPU
+		void displayKernel() 
+		{
+			cudaGraphicsMapResources(1, &cudaPboResource, 0);
+			size_t num_bytes;
+			uchar4 *d_textureBufferData;
 
-		cudaGraphicsResourceGetMappedPointer((void**)&d_textureBufferData, &num_bytes, cudaPboResource);
+			cudaGraphicsResourceGetMappedPointer((void**)&d_textureBufferData, &num_bytes, cudaPboResource);
  
-		m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
-		m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
+			m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
+			m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
 
-		glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
-		glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.f));
-		glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
-		glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
+			glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
+			glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.f));
+			glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
+			glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
 
+			memcpy(m_Options.modelView, 
+				glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
+				16 * sizeof(float));
 
-		memcpy(m_Options.modelView, 
-			glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
-			16 * sizeof(float));
-
-		cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
+			cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
  
-		cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
-	}
+			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
+		}
+	#else
+		void displayKernel() 
+		{
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, gl_pixelBufferObject);
+			uchar4* ptr = (uchar4*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+ 
+			m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
+			m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
 
+			glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
+			glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.0f));
+			glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
+			glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
+
+			memcpy(m_Options.modelView, 
+				glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
+				16 * sizeof(float));
+
+			if(ptr)
+			{
+			
+				cpuclass.RC(ptr, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
+				glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+			}
+
+		
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+		}
+	#endif
 	///< The main rendering function.
 	void draw()
 	{
-
 		displayKernel();
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

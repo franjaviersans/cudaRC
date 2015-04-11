@@ -10,6 +10,7 @@
     <ClCompile Include="Vector4D.cpp" />
     <ClCompile Include="AABB.cpp" />
     <ClCompile Include="Octree.cpp" />
+    <ClCompile Include="kernelCPU.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GLSLProgram.h" />
@@ -23,6 +24,7 @@
     <ClInclude Include="Vector4D.h" />
     <ClInclude Include="AABB.h" />
     <ClInclude Include="Octree.h" />
+    <ClInclude Include="kernelCPU.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

@@ -1,31 +1,32 @@
-#include "kernel.cuh"
+#include "kernelCPU.h"
 
-#define EPSILON 0.000001
-#define CROSS(dest, v1, v2) \
+#define EPSILONCPU 0.000001
+#define CROSSCPU(dest, v1, v2) \
 	dest.x = v1.y*v2.z - v1.z*v2.y; \
 	dest.y = v1.z*v2.x - v1.x*v2.z; \
 	dest.z = v1.x*v2.y - v1.y*v2.x; \
 	dest.w = 0;
-#define DOT(v1, v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z + v1.w * v2.w)
-#define SUB(dest, v1, v2) \
+#define DOTCPU(v1, v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z + v1.w * v2.w)
+#define SUBCPU(dest, v1, v2) \
 	dest.x = v1.x - v2.x; \
 	dest.y = v1.y - v2.y; \
 	dest.z = v1.z - v2.z; \
 	dest.w = v1.w - v2.w;
 
-#define MULT(dest, mat,p) \
+#define MULTCPU(dest, mat,p) \
 	dest.x = mat[0] * p.x + mat[4] * p.y + mat[8] * p.z + mat[12] * p.w; \
 	dest.y = mat[1] * p.x + mat[5] * p.y + mat[9] * p.z + mat[13] * p.w; \
 	dest.z = mat[2] * p.x + mat[6] * p.y + mat[10] * p.z + mat[14] * p.w;\
 	dest.w = mat[3] * p.x + mat[7] * p.y + mat[11] * p.z + mat[15] * p.w; 
 
-struct stackNode
+
+struct stackNodeCPU
 {
 	int index;
 	int actualChild;
 };
 
-__device__ bool ray_triangle( const float4 V1,  // Triangle vertices
+bool ray_triangleCPU( const float4 V1,  // Triangle vertices
                            const float4 V2,
                            const float4 V3,
                            const float4 O,  //Ray origin
@@ -39,38 +40,38 @@ __device__ bool ray_triangle( const float4 V1,  // Triangle vertices
 	float det, inv_det, u, v;
 	
 	//Find vectors for two edges sharing V1
-	SUB(e1, V2, V1);
-	SUB(e2, V3, V1);
+	SUBCPU(e1, V2, V1);
+	SUBCPU(e2, V3, V1);
 	//Begin calculating determinant - also used to calculate u parameter
-	CROSS(P, D, e2);
+	CROSSCPU(P, D, e2);
 	//if determinant is near zero, ray lies in plane of triangle
-	det = DOT(e1, P);
+	det = DOTCPU(e1, P);
 	//NOT CULLING
-	if(det > -EPSILON && det < EPSILON) return false;
+	if(det > -EPSILONCPU && det < EPSILONCPU) return false;
 	inv_det = 1.f / det;
  
 	//calculate distance from V1 to ray origin
-	SUB(T, O, V1);
+	SUBCPU(T, O, V1);
  
 	//Calculate u parameter and test bound
-	u = DOT(T, P) * inv_det;
+	u = DOTCPU(T, P) * inv_det;
 	//The intersection lies outside of the triangle
-	if(u < 0.f - EPSILON || u > 1.f + EPSILON) return false;
+	if(u < 0.f - EPSILONCPU || u > 1.f + EPSILONCPU) return false;
  
 	//Prepare to test v parameter
-	CROSS(Q, T, e1);
+	CROSSCPU(Q, T, e1);
  
 	//Calculate V parameter and test bound
-	v = DOT(D, Q) * inv_det;
+	v = DOTCPU(D, Q) * inv_det;
 	//The intersection lies outside of the triangle
-	if(v < 0.f - EPSILON  || u + v  > 1.f + EPSILON) return false;
+	if(v < 0.f - EPSILONCPU  || u + v  > 1.f + EPSILONCPU) return false;
  
-	*t = DOT(e2, Q) * inv_det;
+	*t = DOTCPU(e2, Q) * inv_det;
  
-	return *t > EPSILON; //ray intersection
+	return *t > EPSILONCPU; //ray intersection
 }
 
-__device__ bool ray_box(const float4 & O,  //Ray origin
+bool ray_boxCPU(const float4 & O,  //Ray origin
 						const float4 & D,  //Ray direction
 						float * t,
 						const float3 & amin,
@@ -109,9 +110,9 @@ __device__ bool ray_box(const float4 & O,  //Ray origin
 	return true;
 }
 
-__device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
+int octreeRayIntersectionCPU(	const float4 & O,  //Ray origin
 										const float4 & D,  //Ray direction
-										const Cell * octree,
+										const Cell * const octree,
 										const uint3 * const id,
 										const float4 * const pos,
 										float *dist)
@@ -119,10 +120,10 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 	int actual = 0;
 	int init, num;
 	uint3 idtri;
-	stackNode Stack[MAXDEPTH + 2];
+	stackNodeCPU Stack[MAXDEPTH + 2];
 	float4 V0, V1, V2;
 	float3 amin, amax;
-	stackNode *Node;
+	stackNodeCPU *Node;
 	int idInter = -1, child_index;
 	float t;
 
@@ -154,7 +155,8 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 				V2 = pos[idtri.z];
 
 				t = FLT_MAX;
-				if(ray_triangle(V0, V1, V2, O, D, &t) && t < *dist)
+				ray_triangleCPU(V0, V1, V2, O, D, &t);
+				if(t < *dist)
 				{
 					*dist = t;
 					idInter = octree[init + i].firstChild; 
@@ -176,7 +178,7 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 			amax.y = octree[child_index].maxBox.y;
 			amax.z = octree[child_index].maxBox.z;
 
-			if(ray_box(O, D, &t, amin, amax) 
+			if(ray_boxCPU(O, D, &t, amin, amax) 
 				&& t < *dist){
 				//Insert the new child in the stack
 				Stack[actual].index = child_index;
@@ -204,17 +206,15 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 	return idInter;
 }
 
-__global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigned int height, 
+void CPURC(uchar4 *buffer, const unsigned int width, const unsigned int height, 
 						 const uint3 * const id, const float4 * const pos, const float4  * const normal, const float2 * const tex,  
-						 const unsigned int num_vert, const unsigned int num_tri, const Options options, const Cell * const octree)
+						 const unsigned int num_vert, const unsigned int num_tri, const Options options, const Cell * const octree, unsigned int x, unsigned int y)
 {
-	/*unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+	//unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+	//unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 	unsigned int tpos = y * width + x;
 
-	
-
-	if(x < width && y < height)
+	/*if(x < width && y < height)
 	{
 
 		buffer[tpos].x = 0;
@@ -230,21 +230,20 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0; origin.w = 1;
 		dir.x = options.priX + x * options.incX; dir.y = options.priY + y * options.incY; dir.z = -1; dir.w = 1;
 
-		SUB(dir, dir, origin);
+		SUBCPU(dir, dir, origin);
 
 		vaux = origin;
-		MULT(origin, options.modelView, vaux);
+		MULTCPU(origin, options.modelView, vaux);
 
 		vaux = dir;
-		MULT(dir, options.modelView, vaux);
+		MULTCPU(dir, options.modelView, vaux);
 
 
 		unsigned int i=0;
 		uint3 idtri;
 		for(; i < num_tri; ++i)
 		{
-			//if(x>=300 && x<=600 && y >= 300 && y <= 600)
-			//{
+			
 			idtri = id[i];
 			float4 V0, V1, V2;
 
@@ -253,21 +252,16 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 			V2 = pos[idtri.z];
 			
 			float t = FLT_MAX;
-			if(ray_triangle( V0, V1, V2, origin, dir, &t))
+			if(ray_triangleCPU( V0, V1, V2, origin, dir, &t))
 			{
 				buffer[tpos].x = 255;
 				buffer[tpos].y = 255;
 				buffer[tpos].z = 255;
 				buffer[tpos].w = 255;
 			}
-			//}
 		}
 	}*/
 	
-	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
-	unsigned int tpos = y * width + x;
-
 	if(x < width && y < height)
 	{
 
@@ -286,15 +280,15 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0.0f; origin.w = 1;
 		dir.x = options.priX + x * options.incX; dir.y = options.priY + y * options.incY; dir.z = -1.0f; dir.w = 1.0f;
 
-		SUB(dir, dir, origin);
+		SUBCPU(dir, dir, origin);
 
 		vaux = origin;
-		MULT(origin, options.modelView, vaux);
+		MULTCPU(origin, options.modelView, vaux);
 
 		vaux = dir;
-		MULT(dir, options.modelView, vaux);
+		MULTCPU(dir, options.modelView, vaux);
 
-		intersect = octreeRayIntersection(origin, dir, octree, id, pos, &D);
+		intersect = octreeRayIntersectionCPU(origin, dir, octree, id, pos, &D);
 		if(intersect != -1)
 		{
 			buffer[tpos].x = 255;
@@ -307,41 +301,34 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 
 
 
-CUDAClass::CUDAClass()
+CPURCClass::CPURCClass()
 {
-	d_pos = NULL;
-	d_normal = NULL;
-	d_tex = NULL;
-	d_id = NULL;
+	h_pos = NULL;
+	h_normal = NULL;
+	h_tex = NULL;
+	h_id = NULL;
 }
 
-CUDAClass::~CUDAClass()
+CPURCClass::~CPURCClass()
 {
-	checkCudaErrors(cudaFree(d_pos));
-	checkCudaErrors(cudaFree(d_normal));
-	checkCudaErrors(cudaFree(d_tex));
-	checkCudaErrors(cudaFree(d_id));
-	checkCudaErrors(cudaFree(d_octree));
+	delete h_pos;
+	delete h_normal;
+	delete h_tex;
+	delete h_id;
+	delete h_octree;
 }
 
 
-void CUDAClass::cudaSetObject(const std::vector<CVertex> *ptr_puntos,const std::vector<CTriangle> *ptr_caras, const vector<Cell> *ptr_octree)
+void CPURCClass::SetObject(const std::vector<CVertex> *ptr_puntos,const std::vector<CTriangle> *ptr_caras, const vector<Cell> *ptr_octree)
 {
-	float4 *h_pos = new float4[(*ptr_puntos).size()];
-	float4 *h_normal = new float4[(*ptr_puntos).size()];
-	float2 *h_tex = new float2[(*ptr_puntos).size()];
-	uint3 *h_id = new uint3[(*ptr_caras).size()];
+	h_pos = new float4[(*ptr_puntos).size()];
+	h_normal = new float4[(*ptr_puntos).size()];
+	h_tex = new float2[(*ptr_puntos).size()];
+	h_id = new uint3[(*ptr_caras).size()];
+	h_octree = new Cell[(*ptr_octree).size()];
 
 	num_vert = (*ptr_puntos).size();
 	num_tri = (*ptr_caras).size();
-
-	checkCudaErrors(cudaMalloc((void**)&d_id,sizeof(uint3) * (*ptr_caras).size()));
-	checkCudaErrors(cudaMalloc((void**)&d_pos,sizeof(float4) * (*ptr_puntos).size()));
-	checkCudaErrors(cudaMalloc((void**)&d_normal,sizeof(float4) * (*ptr_puntos).size()));
-	checkCudaErrors(cudaMalloc((void**)&d_tex,sizeof(float2) * (*ptr_puntos).size()));
-	checkCudaErrors(cudaMalloc((void**)&d_octree, sizeof(Cell) * (*ptr_octree).size()));
-	
-
 
 	for(unsigned int i=0;i<(*ptr_caras).size();++i)
 	{
@@ -368,41 +355,23 @@ void CUDAClass::cudaSetObject(const std::vector<CVertex> *ptr_puntos,const std::
 		h_tex[i].y = (*ptr_puntos)[i].texture.y;
 	}
 
-	checkCudaErrors(cudaMemcpy(d_id,h_id, sizeof(uint3) * (*ptr_caras).size(), cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(d_pos,h_pos, sizeof(float4) * (*ptr_puntos).size(), cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(d_normal,h_normal, sizeof(float4) * (*ptr_puntos).size(), cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(d_tex,h_tex, sizeof(float2) * (*ptr_puntos).size(), cudaMemcpyHostToDevice));
-	checkCudaErrors(cudaMemcpy(d_octree, (*ptr_octree).data(), sizeof(Cell) * (*ptr_octree).size(), cudaMemcpyHostToDevice));
-
-
-	delete [] h_pos;
-	delete [] h_normal;
-	delete [] h_tex;
-	delete [] h_id;
+	memcpy(h_octree, (*ptr_octree).data(), sizeof(Cell) * (*ptr_octree).size());
 
 }
 
 
 // Helper function for using CUDA to add vectors in parallel.
-void CUDAClass::cudaRC(uchar4 *d_buffer, unsigned int width, unsigned int height, Options options)
+void CPURCClass::RC(uchar4 *d_buffer, unsigned int width, unsigned int height, Options options)
 {
-	dim3 blockDim(16, 16, 1);
-	dim3 gridDim((width + blockDim.x)/blockDim.x, (height + blockDim.y)/blockDim.y, 1);
 
-	GpuTimer timer;
-	timer.Start();
-	kernelRC<<<gridDim, blockDim>>>(d_buffer, width, height, d_id, d_pos, d_normal, d_tex, num_vert, num_tri, options, d_octree);
-	timer.Stop();
-
-	printf("%f \n", timer.Elapsed());
-
-	// Check for any errors launching the kernel
-    checkCudaErrors(cudaGetLastError());
-    
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-	checkCudaErrors(cudaDeviceSynchronize());
-
-	
+	for(unsigned int i=0;i<width;++i)
+	{
+		for(unsigned int j=0;j<height;++j)
+		{
+			
+			CPURC(d_buffer, width, height, h_id, h_pos, h_normal, h_tex, num_vert, num_tri, options, h_octree, i, j);
+		}
+	}
+	cout<<"AQUI"<<endl;
 }
 

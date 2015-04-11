@@ -7,7 +7,7 @@
 using namespace std;
 
 #define MAXINLEAF 6
-#define MAXDEPTH 2
+#define MAXDEPTH 1
 
 enum CellType {LEAF, TRIANGLE, INTERNAL};
 
