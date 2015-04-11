@@ -56,14 +56,14 @@ void Octree::Subdividir(){
 	Hoja =  false;
 
 	CVector4D centro = (Caja.amin+Caja.amax)/2.0f; 
-	hijos[0] = new Octree(AABB(Caja.amin,centro),nivel, m_vertex, m_faces);
-	hijos[1] = new Octree(AABB(CVector4D(centro.x,Caja.amin.y,Caja.amin.z, 1.0f),CVector4D(Caja.amax.x,centro.y,centro.z, 1.0f)),nivel, m_vertex, m_faces);
-	hijos[2] = new Octree(AABB(CVector4D(centro.x,Caja.amin.y,centro.z, 1.0f),CVector4D(Caja.amax.x,centro.y,Caja.amax.z, 1.0f)),nivel, m_vertex, m_faces);
-	hijos[3] = new Octree(AABB(CVector4D(Caja.amin.x,Caja.amin.y,centro.z, 1.0f),CVector4D(centro.x,centro.y,Caja.amax.z, 1.0f)),nivel, m_vertex, m_faces);
-	hijos[4] = new Octree(AABB(CVector4D(Caja.amin.x,centro.y,Caja.amin.z, 1.0f),CVector4D(centro.x,Caja.amax.y,centro.z, 1.0f)),nivel, m_vertex, m_faces);
-	hijos[5] = new Octree(AABB(CVector4D(centro.x,centro.y,Caja.amin.z, 1.0f),CVector4D(Caja.amax.x,Caja.amax.y,centro.z, 1.0f)),nivel, m_vertex, m_faces);
-	hijos[6] = new Octree(AABB(centro,Caja.amax),nivel, m_vertex, m_faces);
-	hijos[7] = new Octree(AABB(CVector4D(Caja.amin.x,centro.y,centro.z, 1.0f),CVector4D(centro.x,Caja.amax.y,Caja.amax.z, 1.0f)),nivel, m_vertex, m_faces);
+	hijos[0] = new Octree(AABB(Caja.amin,centro),nivel + 1, m_vertex, m_faces);
+	hijos[1] = new Octree(AABB(CVector4D(centro.x,Caja.amin.y,Caja.amin.z, 1.0f),CVector4D(Caja.amax.x,centro.y,centro.z, 1.0f)),nivel + 1, m_vertex, m_faces);
+	hijos[2] = new Octree(AABB(CVector4D(centro.x,Caja.amin.y,centro.z, 1.0f),CVector4D(Caja.amax.x,centro.y,Caja.amax.z, 1.0f)),nivel + 1, m_vertex, m_faces);
+	hijos[3] = new Octree(AABB(CVector4D(Caja.amin.x,Caja.amin.y,centro.z, 1.0f),CVector4D(centro.x,centro.y,Caja.amax.z, 1.0f)),nivel + 1, m_vertex, m_faces);
+	hijos[4] = new Octree(AABB(CVector4D(Caja.amin.x,centro.y,Caja.amin.z, 1.0f),CVector4D(centro.x,Caja.amax.y,centro.z, 1.0f)),nivel + 1, m_vertex, m_faces);
+	hijos[5] = new Octree(AABB(CVector4D(centro.x,centro.y,Caja.amin.z, 1.0f),CVector4D(Caja.amax.x,Caja.amax.y,centro.z, 1.0f)),nivel + 1, m_vertex, m_faces);
+	hijos[6] = new Octree(AABB(centro,Caja.amax),nivel + 1, m_vertex, m_faces);
+	hijos[7] = new Octree(AABB(CVector4D(Caja.amin.x,centro.y,centro.z, 1.0f),CVector4D(centro.x,Caja.amax.y,Caja.amax.z, 1.0f)),nivel + 1, m_vertex, m_faces);
 
 	//cout<<"AQUI "<<primitivas.size()<<endl;
 	for(int j=0;j<8;++j)
@@ -82,7 +82,7 @@ void Octree::Subdividir(){
 
 		if(hijos[j]->primitivas.size() > MAXINLEAF && this->nivel < MAXDEPTH)
 		{
-			cout<< hijos[j]->primitivas.size()<<endl;
+			//cout<< hijos[j]->primitivas.size()<<endl;
 			hijos[j]->Subdividir();
 		}
 	}
