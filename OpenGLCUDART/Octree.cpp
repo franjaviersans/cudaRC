@@ -26,7 +26,7 @@ Octree::Octree(AABB a, int nive, const std::vector<CVertex> * const vertex, cons
 {
 	Caja = AABB(a.amin,a.amax); 
 	Hoja = true; 
-	nivel = nive+1;
+	nivel = nive;
 	m_vertex = vertex;
 	m_faces = faces;
 
@@ -55,6 +55,15 @@ AABB CalcularCaja(CVector4D V0, CVector4D V1, CVector4D V2){
 void Octree::Subdividir(){
 	Hoja =  false;
 
+	cout<<"ACA "<<nivel<<" "<<primitivas.size()<<endl;
+
+	for each (unsigned int tri_index in primitivas)
+		{
+
+			
+				cout<<tri_index<<endl;
+	}
+
 	CVector4D centro = (Caja.amin+Caja.amax)/2.0f; 
 	hijos[0] = new Octree(AABB(Caja.amin,centro),nivel + 1, m_vertex, m_faces);
 	hijos[1] = new Octree(AABB(CVector4D(centro.x,Caja.amin.y,Caja.amin.z, 1.0f),CVector4D(Caja.amax.x,centro.y,centro.z, 1.0f)),nivel + 1, m_vertex, m_faces);
@@ -71,12 +80,17 @@ void Octree::Subdividir(){
 		for each (unsigned int tri_index in primitivas)
 		{
 
-			AABB caja = CalcularCaja((*m_vertex)[(*m_faces)[tri_index].V0].v, (*m_vertex)[(*m_faces)[tri_index].V1].v, (*m_vertex)[(*m_faces)[tri_index].V2].v);
+			if(hijos[j]->Caja.triBoxOverlap((*m_vertex)[(*m_faces)[tri_index].V0].v, (*m_vertex)[(*m_faces)[tri_index].V1].v, (*m_vertex)[(*m_faces)[tri_index].V2].v))
+			{
+				hijos[j]->primitivas.push_back(tri_index);
+			}
+
+			/*AABB caja = CalcularCaja((*m_vertex)[(*m_faces)[tri_index].V0].v, (*m_vertex)[(*m_faces)[tri_index].V1].v, (*m_vertex)[(*m_faces)[tri_index].V2].v);
 
 			if(hijos[j]->Caja.Interseccion(caja))
 			{
 				hijos[j]->primitivas.push_back(tri_index);
-			}
+			}*/
 		}
 
 
@@ -86,6 +100,8 @@ void Octree::Subdividir(){
 			hijos[j]->Subdividir();
 		}
 	}
+
+	primitivas.clear();
 }
 
 

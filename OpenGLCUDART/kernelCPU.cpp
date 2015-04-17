@@ -1,30 +1,59 @@
 #include "kernelCPU.h"
 
-#define EPSILONCPU 0.000001
-#define CROSSCPU(dest, v1, v2) \
-	dest.x = v1.y*v2.z - v1.z*v2.y; \
-	dest.y = v1.z*v2.x - v1.x*v2.z; \
-	dest.z = v1.x*v2.y - v1.y*v2.x; \
-	dest.w = 0;
-#define DOTCPU(v1, v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z + v1.w * v2.w)
-#define SUBCPU(dest, v1, v2) \
-	dest.x = v1.x - v2.x; \
-	dest.y = v1.y - v2.y; \
-	dest.z = v1.z - v2.z; \
-	dest.w = v1.w - v2.w;
-
-#define MULTCPU(dest, mat,p) \
-	dest.x = mat[0] * p.x + mat[4] * p.y + mat[8] * p.z + mat[12] * p.w; \
-	dest.y = mat[1] * p.x + mat[5] * p.y + mat[9] * p.z + mat[13] * p.w; \
-	dest.z = mat[2] * p.x + mat[6] * p.y + mat[10] * p.z + mat[14] * p.w;\
-	dest.w = mat[3] * p.x + mat[7] * p.y + mat[11] * p.z + mat[15] * p.w; 
-
-
 struct stackNodeCPU
 {
 	int index;
 	int actualChild;
 };
+
+/*
+__device__ uchar4 ComputeLight(const float4 & vert, const float4 & normal, const float4 &light, const float4 &eye, const Options &Options){
+
+	uchar4 color;
+	color.x = 255.0f;
+	color.y = 255.0f;
+	color.z = 255.0f;
+	color.w = 255.0f;
+
+	if(Options.bLight){
+		CVector4D L = light - vert.v, normal;
+		uchar4 spec;
+		spec.x = 0.0f;
+		spec.y = 0.0f;
+		spec.z = 0.0f;
+		spec.w = 0.0f;
+		normal = vert.normal;
+		normal.normalizar();
+		L.normalizar();
+
+		//m_bTexture
+
+		float difintesity = max(producto_punto(normal, L),0.0f);
+
+		if(difintesity > 0.0f){
+			//Calculate specular contribution
+			float intSpec;
+			CVector4D V = eye - vert.v, H;
+			V.normalizar();
+
+			H = L + V;
+			H.normalizar();
+	
+			intSpec = max(producto_punto(H, normal), 0.0f);
+			spec = Options.specular * pow(intSpec, Options.shininess);
+		}
+
+		//Specular + diffuse
+		color = Options.ambient + Options.diffuse * difintesity + spec;
+
+		color.r  = CUDACode::CLAMP(max(Options.ambient.r, color.r), 0.0f, 255.0f);
+		color.g  = CUDACode::CLAMP(max(Options.ambient.g, color.g), 0.0f, 255.0f);
+		color.b  = CUDACode::CLAMP(max(Options.ambient.b, color.b), 0.0f, 255.0f);
+	}
+	
+
+	return color;
+}*/
 
 bool ray_triangleCPU( const float4 V1,  // Triangle vertices
                            const float4 V2,
@@ -40,35 +69,35 @@ bool ray_triangleCPU( const float4 V1,  // Triangle vertices
 	float det, inv_det, u, v;
 	
 	//Find vectors for two edges sharing V1
-	SUBCPU(e1, V2, V1);
-	SUBCPU(e2, V3, V1);
+	SUB(e1, V2, V1);
+	SUB(e2, V3, V1);
 	//Begin calculating determinant - also used to calculate u parameter
-	CROSSCPU(P, D, e2);
+	CROSS(P, D, e2);
 	//if determinant is near zero, ray lies in plane of triangle
-	det = DOTCPU(e1, P);
+	det = DOT(e1, P);
 	//NOT CULLING
-	if(det > -EPSILONCPU && det < EPSILONCPU) return false;
+	if(det > -EPSILON && det < EPSILON) return false;
 	inv_det = 1.f / det;
  
 	//calculate distance from V1 to ray origin
-	SUBCPU(T, O, V1);
+	SUB(T, O, V1);
  
 	//Calculate u parameter and test bound
-	u = DOTCPU(T, P) * inv_det;
+	u = DOT(T, P) * inv_det;
 	//The intersection lies outside of the triangle
-	if(u < 0.f - EPSILONCPU || u > 1.f + EPSILONCPU) return false;
+	if(u < 0.f - EPSILON || u > 1.f + EPSILON) return false;
  
 	//Prepare to test v parameter
-	CROSSCPU(Q, T, e1);
+	CROSS(Q, T, e1);
  
 	//Calculate V parameter and test bound
-	v = DOTCPU(D, Q) * inv_det;
+	v = DOT(D, Q) * inv_det;
 	//The intersection lies outside of the triangle
-	if(v < 0.f - EPSILONCPU  || u + v  > 1.f + EPSILONCPU) return false;
+	if(v < 0.f - EPSILON  || u + v  > 1.f + EPSILON) return false;
  
-	*t = DOTCPU(e2, Q) * inv_det;
+	*t = DOT(e2, Q) * inv_det;
  
-	return *t > EPSILONCPU; //ray intersection
+	return *t > EPSILON; //ray intersection
 }
 
 bool ray_boxCPU(const float4 & O,  //Ray origin
@@ -230,13 +259,13 @@ void CPURC(uchar4 *buffer, const unsigned int width, const unsigned int height,
 		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0; origin.w = 1;
 		dir.x = options.priX + x * options.incX; dir.y = options.priY + y * options.incY; dir.z = -1; dir.w = 1;
 
-		SUBCPU(dir, dir, origin);
+		SUB(dir, dir, origin);
 
 		vaux = origin;
-		MULTCPU(origin, options.modelView, vaux);
+		MULT(origin, options.modelView, vaux);
 
 		vaux = dir;
-		MULTCPU(dir, options.modelView, vaux);
+		MULT(dir, options.modelView, vaux);
 
 
 		unsigned int i=0;
@@ -280,13 +309,13 @@ void CPURC(uchar4 *buffer, const unsigned int width, const unsigned int height,
 		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0.0f; origin.w = 1;
 		dir.x = options.priX + x * options.incX; dir.y = options.priY + y * options.incY; dir.z = -1.0f; dir.w = 1.0f;
 
-		SUBCPU(dir, dir, origin);
+		SUB(dir, dir, origin);
 
 		vaux = origin;
-		MULTCPU(origin, options.modelView, vaux);
+		MULT(origin, options.modelView, vaux);
 
 		vaux = dir;
-		MULTCPU(dir, options.modelView, vaux);
+		MULT(dir, options.modelView, vaux);
 
 		intersect = octreeRayIntersectionCPU(origin, dir, octree, id, pos, &D);
 		if(intersect != -1)

@@ -12,20 +12,21 @@
 #include <string>
 #include <iostream>
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include "cuda_gl_interop.h"
-#include "kernel.cuh"
-#include "kernelCPU.h"
 
-#pragma comment(lib, "lib/glfw3dll.lib")
-#pragma comment(lib, "lib/glew32.lib")
-#pragma comment(lib, "opengl32.lib")
 
-#define BUFFER_OFFSET(i) ((char *)NULL + (i))
-#define MYPI 3.14159265
+
 
 #define GPU
+
+
+#ifdef GPU
+	#include "cuda_runtime.h"
+	#include "device_launch_parameters.h"
+	#include "cuda_gl_interop.h"
+	#include "kernel.cuh"
+#else	
+	#include "kernelCPU.h"
+#endif
 
 using namespace std;
 

@@ -1,23 +1,6 @@
 #include "kernel.cuh"
 
-#define EPSILON 0.000001
-#define CROSS(dest, v1, v2) \
-	dest.x = v1.y*v2.z - v1.z*v2.y; \
-	dest.y = v1.z*v2.x - v1.x*v2.z; \
-	dest.z = v1.x*v2.y - v1.y*v2.x; \
-	dest.w = 0;
-#define DOT(v1, v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z + v1.w * v2.w)
-#define SUB(dest, v1, v2) \
-	dest.x = v1.x - v2.x; \
-	dest.y = v1.y - v2.y; \
-	dest.z = v1.z - v2.z; \
-	dest.w = v1.w - v2.w;
 
-#define MULT(dest, mat,p) \
-	dest.x = mat[0] * p.x + mat[4] * p.y + mat[8] * p.z + mat[12] * p.w; \
-	dest.y = mat[1] * p.x + mat[5] * p.y + mat[9] * p.z + mat[13] * p.w; \
-	dest.z = mat[2] * p.x + mat[6] * p.y + mat[10] * p.z + mat[14] * p.w;\
-	dest.w = mat[3] * p.x + mat[7] * p.y + mat[11] * p.z + mat[15] * p.w; 
 
 struct stackNode
 {
@@ -204,6 +187,8 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 	return idInter;
 }
 
+
+
 __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigned int height, 
 						 const uint3 * const id, const float4 * const pos, const float4  * const normal, const float2 * const tex,  
 						 const unsigned int num_vert, const unsigned int num_tri, const Options options, const Cell * const octree)
@@ -322,6 +307,8 @@ CUDAClass::~CUDAClass()
 	checkCudaErrors(cudaFree(d_tex));
 	checkCudaErrors(cudaFree(d_id));
 	checkCudaErrors(cudaFree(d_octree));
+
+	cudaDeviceReset();
 }
 
 

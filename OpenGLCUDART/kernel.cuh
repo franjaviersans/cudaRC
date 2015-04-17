@@ -11,6 +11,7 @@
 #include "Vertex.h"
 #include "Triangle.h"
 #include "Octree.h"
+#include "Definitions.h"
 #include <vector>
 #include <stdio.h>
 

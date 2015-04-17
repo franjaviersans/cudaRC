@@ -6,8 +6,8 @@
 #include <vector>
 using namespace std;
 
-#define MAXINLEAF 10
-#define MAXDEPTH 20
+#define MAXINLEAF 6
+#define MAXDEPTH 10
 
 enum CellType {LEAF, TRIANGLE, INTERNAL};
 

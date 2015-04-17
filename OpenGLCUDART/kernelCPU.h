@@ -5,6 +5,7 @@
 #include "Triangle.h"
 #include "Octree.h"
 #include "kernel.cuh"
+#include "Definitions.h"
 #include <vector>
 #include <stdio.h>
 

@@ -11,6 +11,7 @@
     <ClCompile Include="AABB.cpp" />
     <ClCompile Include="Octree.cpp" />
     <ClCompile Include="kernelCPU.cpp" />
+    <ClCompile Include="Definitions.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GLSLProgram.h" />
