@@ -13,13 +13,14 @@ __device__ bool ray_triangle( const float4 V1,  // Triangle vertices
                            const float4 V3,
                            const float4 O,  //Ray origin
                            const float4 D,  //Ray direction
-							float *t
-						   )
+							float *t,
+						   float &u, 
+						   float &v)
 {
 
 	float4 e1, e2;  //Edge1, Edge2
 	float4 P, Q, T;
-	float det, inv_det, u, v;
+	float det, inv_det;
 	
 	//Find vectors for two edges sharing V1
 	SUB(e1, V2, V1);
@@ -57,7 +58,8 @@ __device__ bool ray_box(const float4 & O,  //Ray origin
 						const float4 & D,  //Ray direction
 						float * t,
 						const float3 & amin,
-						const float3 & amax){
+						const float3 & amax)
+{
 
 	float md;
 	float tmin = -1.0f *FLT_MAX ;
@@ -97,7 +99,9 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 										const Cell * octree,
 										const uint3 * const id,
 										const float4 * const pos,
-										float *dist)
+										float *dist,
+										float &u,
+										float &v)
 {
 	int actual = 0;
 	int init, num;
@@ -108,6 +112,7 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 	stackNode *Node;
 	int idInter = -1, child_index;
 	float t;
+	float v1, u1;
 
 	Stack[actual].index = 0;
 	Stack[actual].actualChild = 0;
@@ -137,9 +142,11 @@ __device__ int octreeRayIntersection(	const float4 & O,  //Ray origin
 				V2 = pos[idtri.z];
 
 				t = FLT_MAX;
-				if(ray_triangle(V0, V1, V2, O, D, &t) && t < *dist)
+				if(ray_triangle(V0, V1, V2, O, D, &t, u1, v1) && t < *dist)
 				{
 					*dist = t;
+					u = u1;
+					v = v1;
 					idInter = octree[init + i].firstChild; 
 					//printf("Alguien aca");
 				}
@@ -252,6 +259,7 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 	unsigned int tpos = y * width + x;
+	float u, v;
 
 	if(x < width && y < height)
 	{
@@ -268,7 +276,7 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 		float4 dir;
 		float4 vaux;
 		//dir(options.priX + x * options.incX, options.priY + y * options.incY, -1.0f ,0.0f)
-		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0.0f; origin.w = 1;
+		origin.x = 0.0f; origin.y = 0.0f; origin.z = 0.0f; origin.w = 1.0f;
 		dir.x = options.priX + x * options.incX; dir.y = options.priY + y * options.incY; dir.z = -1.0f; dir.w = 1.0f;
 
 		SUB(dir, dir, origin);
@@ -279,12 +287,18 @@ __global__ void kernelRC(uchar4 *buffer, const unsigned int width, const unsigne
 		vaux = dir;
 		MULT(dir, options.modelView, vaux);
 
-		intersect = octreeRayIntersection(origin, dir, octree, id, pos, &D);
+		intersect = octreeRayIntersection(origin, dir, octree, id, pos, &D, u, v);
 		if(intersect != -1)
 		{
-			buffer[tpos].x = 255;
-			buffer[tpos].y = 255;
-			buffer[tpos].z = 255;
+
+			uint3 idtri = id[intersect];
+			float4 V0 = normal[idtri.x];
+			float4 V1 = normal[idtri.y];
+			float4 V2 = normal[idtri.z];
+			if(u < 0.0f - EPSILON || u  > 1.0f + EPSILON  || v <0.0f - EPSILON  || v > 1.0f + EPSILON  ) printf("no deberia ocurrir %f %f %f \n",u, v, 1.0f - (u+v));
+			BARI(buffer[tpos].x, 255.0f * V0.x, 255.0f * V1.x, 255.0f * V2.x, u, v);
+			BARI(buffer[tpos].y, 255.0f * V0.y, 255.0f * V1.y, 255.0f * V2.y, u, v);
+			BARI(buffer[tpos].z, 255.0f * V0.z, 255.0f * V1.z, 255.0f * V2.z, u, v);
 			buffer[tpos].w = 255;
 		}
 	}

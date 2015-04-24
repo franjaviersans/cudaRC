@@ -148,6 +148,7 @@ bool CObjectOFF::openFile(const std::string& pFile){
 
 		//Se guarda cada punto en un vector
 		punto_auxi.v.init(pointx,pointy,pointz,1.0f);
+		punto_auxi.normal.init(0.0f,0.0f,0.0f,0.0f);
 
 		vertex.push_back(punto_auxi);
 	}

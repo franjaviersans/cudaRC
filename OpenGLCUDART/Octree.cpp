@@ -55,14 +55,14 @@ AABB CalcularCaja(CVector4D V0, CVector4D V1, CVector4D V2){
 void Octree::Subdividir(){
 	Hoja =  false;
 
-	cout<<"ACA "<<nivel<<" "<<primitivas.size()<<endl;
+	/*cout<<"ACA "<<nivel<<" "<<primitivas.size()<<endl;
 
 	for each (unsigned int tri_index in primitivas)
 		{
 
 			
 				cout<<tri_index<<endl;
-	}
+	}*/
 
 	CVector4D centro = (Caja.amin+Caja.amax)/2.0f; 
 	hijos[0] = new Octree(AABB(Caja.amin,centro),nivel + 1, m_vertex, m_faces);

@@ -13,12 +13,15 @@
 
 
 #define EPSILON 0.000001
+
 #define CROSS(dest, v1, v2) \
 	dest.x = v1.y*v2.z - v1.z*v2.y; \
 	dest.y = v1.z*v2.x - v1.x*v2.z; \
 	dest.z = v1.x*v2.y - v1.y*v2.x; \
 	dest.w = 0;
+
 #define DOT(v1, v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z + v1.w * v2.w)
+
 #define SUB(dest, v1, v2) \
 	dest.x = v1.x - v2.x; \
 	dest.y = v1.y - v2.y; \
@@ -31,6 +34,8 @@
 	dest.z = mat[2] * p.x + mat[6] * p.y + mat[10] * p.z + mat[14] * p.w;\
 	dest.w = mat[3] * p.x + mat[7] * p.y + mat[11] * p.z + mat[15] * p.w; 
 
+#define BARI(dest, source1, source2, source3, u, v) \
+	dest = source1 * (1.0f - (u + v)) + source2 * u + source3 * v;
 
 #define X 0
 #define Y 1
