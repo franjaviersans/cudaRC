@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include "Object.h"
+#include "cuda_runtime.h"
 
 
 class CObjectOFF: public CMyObject {
@@ -16,7 +17,7 @@ class CObjectOFF: public CMyObject {
 		std::fstream entrada;
 		unsigned int num, i, j, tam, aux;
 		float pointx, pointy, pointz;
-		float maxx,minx,maxy,miny,maxz,minz;
+		float3 maxi, mini;
 
 	public:
 		std::vector<CVertex> vertex;
@@ -34,6 +35,8 @@ class CObjectOFF: public CMyObject {
 		void print();
 		std::vector<CVertex> * getVertex(){return &vertex;};
 		std::vector<CTriangle> * getFaces(){return &faces;};
+		float3 minBox(){return mini;};
+		float3 maxBox(){return maxi;};
 };
 
 #endif 

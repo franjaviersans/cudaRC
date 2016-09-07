@@ -7,21 +7,26 @@
 #include "include/glm/gtx/quaternion.hpp"
 #include "GLSLProgram.h"
 #include "ObjectOFF.h"
+#include "Octree.h"
 #include <stdlib.h>
 #include <string>
 #include <iostream>
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include "cuda_gl_interop.h"
-#include "kernel.cuh"
 
-#pragma comment(lib, "lib/glfw3dll.lib")
-#pragma comment(lib, "lib/glew32.lib")
-#pragma comment(lib, "opengl32.lib")
 
-#define BUFFER_OFFSET(i) ((char *)NULL + (i))
-#define MYPI 3.14159265
+
+
+#define GPU
+
+
+#ifdef GPU
+	#include "cuda_runtime.h"
+	#include "device_launch_parameters.h"
+	#include "cuda_gl_interop.h"
+	#include "kernel.cuh"
+#else	
+	#include "kernelCPU.h"
+#endif
 
 using namespace std;
 
@@ -30,7 +35,13 @@ using namespace std;
 namespace glfwFunc
 {
 	CObjectOFF * off;
-	CUDAClass cuda;
+	#ifdef GPU
+		CUDAClass cuda;
+	#else	
+		CPURCClass cpuclass;
+	#endif
+	
+	
 	Options m_Options;
 	GLFWwindow* glfwWindow;
 	const unsigned int WINDOW_WIDTH = 1280;
@@ -39,7 +50,8 @@ namespace glfwFunc
 	const float FCP = 5.0f;
 	const float fAngle = 45.f;
 	double lastx, lasty;
-	bool pres = false;
+	float s = 1.0f, tx = 0.0f, ty = 0.0f, tz = 0.0f;
+	int pres = -1;
 	//Variables to do rotation
 	glm::quat quater, q2;
 	glm::mat4x4 RotationMat = glm::mat4x4();
@@ -89,6 +101,43 @@ namespace glfwFunc
 		glBindVertexArray(0);
 	}
 	
+
+	int sumar(Octree oc)
+	{
+		if(oc.Hoja)
+		{
+			return oc.primitivas.size();
+		}
+		else
+		{
+			int acum = 0;
+			for (int i = 0; i < 8; i++)
+			{
+				acum += sumar(*(oc.hijos[i]));
+			}
+
+			return acum;
+		}
+	}
+
+	int nivel(Octree oc)
+	{
+		if(oc.Hoja)
+		{
+			return 0;
+		}
+		else
+		{
+			int actual = 0;
+			for (int i = 0; i < 8; i++)
+			{
+				actual = max(actual, nivel((*(oc.hijos[i]))));
+			}
+
+			return actual + 1;
+		}
+	}
+
 	///
 	/// Init all data and variables.
 	/// @return true if everything is ok, false otherwise
@@ -151,16 +200,18 @@ namespace glfwFunc
 		glBufferData(GL_PIXEL_UNPACK_BUFFER, WINDOW_WIDTH * WINDOW_HEIGHT * sizeof(uchar4), NULL, GL_DYNAMIC_DRAW);
  
 		//Bind the PBO to a cuda resource
-		checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cudaPboResource, gl_pixelBufferObject, cudaGraphicsMapFlagsWriteDiscard));
-		
+		#ifdef GPU
+			checkCudaErrors(cudaGraphicsGLRegisterBuffer(&cudaPboResource, gl_pixelBufferObject, cudaGraphicsMapFlagsWriteDiscard));
+		#endif
 
-		quater = glm::quat();
+		quater = glm::quat(0.0f,1.0f,0.0f,0.0f);
+
 
 		//Load an object
 		off = new CObjectOFF();
 			
 		//Set the image to the  class
-		if(off->openFile("E:/Users/franjav/Desktop/Modelos/off/apple.off")){
+		if(off->openFile("E:/Users/franjav/Desktop/MasterTesis/Modelos/off/space_station.off")){
 			/*m_translate.x = 0.0;
 			m_translate.y = 0.0;
 			m_translate.z = 0.0;
@@ -171,7 +222,46 @@ namespace glfwFunc
 			((CObjectOFF *)off)->normalize();
 			((CObjectOFF *)off)->norm();
 
-			cuda.cudaSetObject(off->getVertex(), off->getFaces());
+
+			//Set the octree with the object
+			Octree oc(off->getVertex(), off->getFaces(), AABB(CVector4D(off->minBox().x, off->minBox().y, off->minBox().z, 1.0f), 
+																CVector4D(off->maxBox().x, off->maxBox().y, off->maxBox().z, 1.0f)));
+
+			vector<Cell> vec;
+			oc.toLinear(&vec);
+
+			/*
+			cout<<"SUMAR "<<sumar(oc)<<endl;
+			cout<<"NIVEL "<<nivel(oc)<<endl;
+			
+			for(int i=0;i<vec.size();++i)
+			{
+				if(vec[i].type == TRIANGLE){
+					cout<<i<<"  "<<((vec[i].type == LEAF)?"Hoja":((vec[i].type == INTERNAL)?"Internal":"Tri"))<<"  "<<vec[i].numChilds<<"  "<<
+						vec[i].firstChild<<"  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V0].v.z<<")  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V1].v.z<<")  "<<
+						" ("<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.x<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.y<<","<<(*off->getVertex())[(*off->getFaces())[vec[i].firstChild].V2].v.z<<")  "
+						;
+				}else{
+					cout<<i<<"  "<<((vec[i].type == LEAF)?"Hoja":((vec[i].type == INTERNAL)?"Internal":"Tri"))<<"  "<<vec[i].numChilds<<"  "<<
+						vec[i].firstChild<<
+						" ("<<vec[i].minBox.x<<","<<vec[i].minBox.y<<","<<vec[i].minBox.z<<
+						")  "<<" ("<<vec[i].maxBox.x<<","<<vec[i].maxBox.y<<","<<vec[i].maxBox.z<<")";
+				}
+				cout<<endl;
+			}*/
+
+			#ifdef GPU
+				cuda.cudaSetObject(off->getVertex(), off->getFaces(), &vec);
+			#else	
+				cpuclass.SetObject(off->getVertex(), off->getFaces(), &vec);
+			#endif
+			
+		}
+		else
+		{
+			cout<<"Problem loading file"<<endl;
 		}
 				
 		delete off;
@@ -210,18 +300,28 @@ namespace glfwFunc
 
 	int TwEventMousePosGLFW3(GLFWwindow* window, double xpos, double ypos)
 	{ 
-		if(pres){	
+		if(pres == 0){	
 			//Rotation
 			float dx = float(xpos - lastx);
-			float dy = float(ypos - lasty);
+			float dy = - float(ypos - lasty);
 
 			//Calculate angle and rotation axis
 			float angle = sqrtf(dx*dx + dy*dy)/50.0f;
 					
 			//Acumulate rotation with quaternion multiplication
-			q2 = glm::angleAxis(angle, glm::normalize(glm::vec3(dy,dx,0.0f)));
-			quater = glm::cross(q2, quater);
-			
+			if(abs(dx) + abs(dy) > 0.01f){
+				q2 = glm::angleAxis(angle, glm::normalize(glm::vec3(dy,dx,0.0f)));
+				quater = glm::cross(q2, quater);
+			}
+
+
+			lastx = xpos;
+			lasty = ypos;
+		}else if(pres == 1){
+			//Translate point
+			tx += float(xpos - lastx) / 100.0f;
+			ty += float(ypos - lasty) / 100.0f;
+	
 			lastx = xpos;
 			lasty = ypos;
 		}
@@ -237,14 +337,28 @@ namespace glfwFunc
 			if(action == GLFW_PRESS){
 				lastx = x;
 				lasty = y;
-				pres = true;
+				pres = 0;
 			}else{				
-				pres = false;
+				pres = -1;
+			}
+			return true;
+		}else if(button == GLFW_MOUSE_BUTTON_RIGHT){
+			if(action == GLFW_PRESS){
+				lastx = x;
+				lasty = y;
+				pres = 1;
+			}else{				
+				pres = -1;
 			}
 			return true;
 		}
 			
 		return false;
+	}
+
+	int TwEventMouseWheelGLFW3(GLFWwindow* window, double xoffset, double yoffset){
+		s += float(yoffset) / 10.0f;
+		return true;
 	}
 	
 	///< The resizing function
@@ -260,33 +374,64 @@ namespace glfwFunc
 		m_Options.priY = -tan(fAngle/2.0f*float(MYPI)/180.0f) * NCP;
 	}
 
-	void displayKernel() 
-	{
-		cudaGraphicsMapResources(1, &cudaPboResource, 0);
-		size_t num_bytes;
-		uchar4 *d_textureBufferData;
+	#ifdef GPU
+		void displayKernel() 
+		{
+			cudaGraphicsMapResources(1, &cudaPboResource, 0);
+			size_t num_bytes;
+			uchar4 *d_textureBufferData;
 
-		cudaGraphicsResourceGetMappedPointer((void**)&d_textureBufferData, &num_bytes, cudaPboResource);
+			cudaGraphicsResourceGetMappedPointer((void**)&d_textureBufferData, &num_bytes, cudaPboResource);
  
-		m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
-		m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
+			m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
+			m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
 
-		glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
-		glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.f));
+			glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
+			glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.f));
+			glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
+			glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
 
-		memcpy(m_Options.modelView, 
-			glm::value_ptr(trans * rot), 
-			16 * sizeof(float));
+			memcpy(m_Options.modelView, 
+				glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
+				16 * sizeof(float));
 
-		cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
+			cuda.cudaRC(d_textureBufferData, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
  
-		cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
-	}
+			cudaGraphicsUnmapResources(1, &cudaPboResource, 0);
+		}
+	#else
+		void displayKernel() 
+		{
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, gl_pixelBufferObject);
+			uchar4* ptr = (uchar4*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+ 
+			m_Options.incX = - 2.0f * m_Options.priX/float(WINDOW_WIDTH);
+			m_Options.incY = - 2.0f * m_Options.priY/float(WINDOW_HEIGHT);
 
+			glm::mat4 rot = glm::mat4_cast(glm::normalize(quater));
+			glm::mat4 trans = glm::translate(glm::mat4(), glm::vec3(0,0,-10.0f));
+			glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(s));
+			glm::mat4 trans2 = glm::translate(glm::mat4(), glm::vec3(tx, ty, tz));
+
+			memcpy(m_Options.modelView, 
+				glm::value_ptr(glm::inverse(trans * trans2 * scale * rot)), 
+				16 * sizeof(float));
+
+			if(ptr)
+			{
+			
+				cpuclass.RC(ptr, WINDOW_WIDTH, WINDOW_HEIGHT, m_Options);
+				glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+			}
+
+		
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+		}
+	#endif
 	///< The main rendering function.
 	void draw()
 	{
-
 		displayKernel();
 		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -349,6 +494,7 @@ int main(int argc, char** argv)
 	glfwSetKeyCallback(glfwFunc::glfwWindow, glfwFunc::keyboardCB);
 	glfwSetWindowSizeCallback(glfwFunc::glfwWindow, glfwFunc::resizeCB);
 	glfwSetMouseButtonCallback(glfwFunc::glfwWindow, (GLFWmousebuttonfun)glfwFunc::TwEventMouseButtonGLFW3);
+	glfwSetScrollCallback(glfwFunc::glfwWindow, (GLFWscrollfun)glfwFunc::TwEventMouseWheelGLFW3);
 	glfwSetCursorPosCallback(glfwFunc::glfwWindow, (GLFWcursorposfun)glfwFunc::TwEventMousePosGLFW3);
 
 	// main loop!
