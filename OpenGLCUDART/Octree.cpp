@@ -1,6 +1,7 @@
 #include "Octree.h"
 #include <float.h>
 #include <iostream>
+#include <algorithm>
 
 
 Octree::Octree(const std::vector<CVertex> * const vertex, const std::vector<CTriangle> * const faces, AABB objectAABB){
@@ -39,13 +40,13 @@ Octree::~Octree(){
 
 AABB CalcularCaja(CVector4D V0, CVector4D V1, CVector4D V2){
 	CVector4D mini, maxi;
-	mini.x = min(V0.x, min(V1.x, V2.x));
-	mini.y = min(V0.y, min(V1.y, V2.y));
-	mini.z = min(V0.z, min(V1.z, V2.z));
+	mini.x = std::min(V0.x, std::min(V1.x, V2.x));
+	mini.y = std::min(V0.y, std::min(V1.y, V2.y));
+	mini.z = std::min(V0.z, std::min(V1.z, V2.z));
 
-	maxi.x = max(V0.x, max(V1.x, V2.x));
-	maxi.y = max(V0.y, max(V1.y, V2.y));
-	maxi.z = max(V0.z, max(V1.z, V2.z));
+	maxi.x = std::max(V0.x, std::max(V1.x, V2.x));
+	maxi.y = std::max(V0.y, std::max(V1.y, V2.y));
+	maxi.z = std::max(V0.z, std::max(V1.z, V2.z));
 
 	AABB caja(mini, maxi);
 
